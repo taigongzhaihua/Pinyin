@@ -5,8 +5,6 @@ VisualStudioVersion = 17.13.35731.43 d17.13
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGZH.Pinyin", "TGZH.Pinyin.csproj", "{143B7860-B914-4790-9E53-53E63E6C782B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGZH.Pinyin.test", "..\TGZH.Pinyin.test\TGZH.Pinyin.test.csproj", "{E49925A4-C128-49C8-AB0F-99A18B267C15}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
