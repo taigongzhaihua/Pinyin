@@ -18,6 +18,29 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Extract version from tag
+        id: get_version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref }}".Replace('refs/tags/v', '')
+          echo "VERSION=$tag" >> $env:GITHUB_OUTPUT
+          echo "Version extracted: $tag"
+
+      - name: Update version in project file
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          $files = Get-ChildItem -Recurse -Filter *.csproj
+          foreach ($file in $files) {
+            $content = Get-Content -Path $file.FullName
+            $updated = $content -replace '<Version>.*?</Version>', "<Version>$version</Version>"
+            $updated = $updated -replace '<PackageVersion>.*?</PackageVersion>', "<PackageVersion>$version</PackageVersion>"
+            $updated = $updated -replace '<AssemblyVersion>.*?</AssemblyVersion>', "<AssemblyVersion>$version</AssemblyVersion>"
+            $updated = $updated -replace '<FileVersion>.*?</FileVersion>', "<FileVersion>$version</FileVersion>"
+            Set-Content -Path $file.FullName -Value $updated
+            echo "Updated version in $($file.FullName) to $version"
+          }
+
       - name: Install Visual Studio Build Tools
         run: |
           choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools --includeRecommended --includeOptional"
@@ -41,7 +64,7 @@ jobs:
         run: dir ./nupkg
 
       - name: Upload NuGet package
-        uses: actions/upload-artifact@v4 # 更新到v4版本
+        uses: actions/upload-artifact@v4
         with:
           name: nuget-package
           path: ./nupkg/*.nupkg
@@ -57,7 +80,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Download NuGet package
-        uses: actions/download-artifact@v4 # 更新到v4版本
+        uses: actions/download-artifact@v4
         with:
           name: nuget-package
           path: ./nupkg
@@ -65,5 +88,10 @@ jobs:
       - name: List downloaded packages
         run: dir ./nupkg
 
-      - name: Publish to NuGet
-        run: dotnet nuget push "./nupkg/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+      - name: Publish to NuGet (PowerShell)
+        shell: powershell
+        run: |
+          $packages = Get-ChildItem -Path "./nupkg" -Filter "*.nupkg"
+          foreach ($package in $packages) {
+            dotnet nuget push $package.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+          }
