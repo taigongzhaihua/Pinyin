@@ -18,9 +18,13 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
-    - name: Install dependencies
+    - name: Install Visual Studio Build Tools
       run: |
-        choco install visualstudio2022buildtools visualstudio2022-workload-manageddesktopbuildtools
+        choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.AzureBuildTools --includeRecommended --includeOptional"
+      shell: powershell
+
+    - name: Install Windows SDK
+      run: |
         choco install windows-sdk-10.0
       shell: powershell
 
