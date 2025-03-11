@@ -18,6 +18,12 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    - name: Install dependencies
+      run: |
+        choco install visualstudio2022buildtools visualstudio2022-workload-manageddesktopbuildtools
+        choco install windows-sdk-10.0
+      shell: powershell
+
     - name: Restore dependencies
       run: dotnet restore
 
