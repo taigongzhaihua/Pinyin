@@ -13,12 +13,14 @@
 <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="README.md" />
     <None Remove="Resources\BasicCharacterPinyin.txt" />
     <None Remove="Resources\BasicWordPinyin.txt" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\BasicCharacterPinyin.txt" />
-    <EmbeddedResource Include="Resources\BasicWordPinyin.txt" />
+    <EmbeddedResource Include="README.md" Pack="true" PackagePath="\"/>
+    <EmbeddedResource Include="Resources\BasicCharacterPinyin.txt" Pack="true" PackagePath="\"/>
+    <EmbeddedResource Include="Resources\BasicWordPinyin.txt" Pack="true" PackagePath="\"/>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />

@@ -103,60 +103,120 @@ internal class PinyinTextProcessor(OptimizedPinyinDatabase database)
     {
         // 分词
         var segments = SimpleTextSegmenter.Segment(text);
+        var nonChineseBuffer = new StringBuilder();
+        var isFirstAppend = true;
 
         foreach (var segment in segments)
         {
             if (segment.Length > 1 && IsChineseAt(segment, 0))
             {
+                // 处理之前缓冲的非中文字符
+                if (nonChineseBuffer.Length > 0)
+                {
+                    if (!isFirstAppend) result.Append(separator);
+                    result.Append(nonChineseBuffer);
+                    nonChineseBuffer.Clear();
+                    isFirstAppend = false;
+                }
+
                 // 先尝试作为词语处理
                 var wordPinyin = await _database.GetWordPinyinAsync(segment, format);
 
                 if (!string.IsNullOrEmpty(wordPinyin))
                 {
                     // 使用词语的拼音
-                    if (result.Length > 0) result.Append(separator);
-                    result.Append(wordPinyin);
+                    if (!isFirstAppend) result.Append(separator);
+                    switch (format)
+                    {
+                        case PinyinFormat.FirstLetter:
+                            var wordResult = "";
+                            foreach (var c in wordPinyin)
+                            {
+                                if (wordResult.Length > 0) wordResult += separator;
+                                wordResult += c;
+                            }
+                            result.Append(wordResult);
+                            break;
+                        default:
+                            result.Append(wordPinyin.Replace(" ", separator));
+                            break;
+                    }
+                    isFirstAppend = false;
                     continue;
                 }
-            }
 
-            // 逐字符处理（注意这里改用索引遍历而非foreach，以正确处理代理对）
-            for (var i = 0; i < segment.Length; i++)
+                // 逐字符处理
+                var segmentNonChineseBuffer = new StringBuilder();
+                var isFirstInSegment = true;
+
+                for (var i = 0; i < segment.Length; i++)
+                {
+                    if (IsChineseAt(segment, i))
+                    {
+                        // 处理之前缓冲的非中文字符
+                        if (segmentNonChineseBuffer.Length > 0)
+                        {
+                            if (!isFirstAppend || !isFirstInSegment) result.Append(separator);
+                            result.Append(segmentNonChineseBuffer);
+                            segmentNonChineseBuffer.Clear();
+                            isFirstAppend = false;
+                            isFirstInSegment = false;
+                        }
+
+                        var c = segment[i];
+                        string[] pinyins;
+
+                        // 使用上下文智能判断多音字
+                        if (_options.UseSmartPolyphoneHandling)
+                        {
+                            pinyins = await GetContextAwarePinyinAsync(segment, i, format);
+                        }
+                        else
+                        {
+                            pinyins = await _database.GetCharPinyinAsync(c, format);
+                        }
+
+                        if (pinyins is { Length: > 0 })
+                        {
+                            if (!isFirstAppend || !isFirstInSegment) result.Append(separator);
+                            result.Append(pinyins[0]); // 使用第一个拼音
+                            isFirstAppend = false;
+                            isFirstInSegment = false;
+                        }
+
+                        // 如果是代理对，跳过第二个char
+                        if (char.IsHighSurrogate(c) && i + 1 < segment.Length && char.IsLowSurrogate(segment[i + 1]))
+                        {
+                            i++;
+                        }
+                    }
+                    // 处理非中文字符
+                    else if (_options.PreserveNonChinese)
+                    {
+                        segmentNonChineseBuffer.Append(segment[i]);
+                    }
+                }
+
+                // 处理段落内剩余的非中文字符
+                if (segmentNonChineseBuffer.Length > 0)
+                {
+                    if (!isFirstAppend || !isFirstInSegment) result.Append(separator);
+                    result.Append(segmentNonChineseBuffer);
+                    isFirstAppend = false;
+                }
+            }
+            // 处理完全非中文的段落
+            else if (_options.PreserveNonChinese)
             {
-                // 检查当前位置的字符是否为中文（支持所有Unicode平面）
-                if (IsChineseAt(segment, i))
-                {
-                    var c = segment[i];
-                    string[] pinyins;
-
-                    // 使用上下文智能判断多音字
-                    if (_options.UseSmartPolyphoneHandling)
-                    {
-                        pinyins = await GetContextAwarePinyinAsync(segment, i, format);
-                    }
-                    else
-                    {
-                        pinyins = await _database.GetCharPinyinAsync(c, format);
-                    }
-
-                    if (pinyins is { Length: > 0 })
-                    {
-                        if (result.Length > 0) result.Append(separator);
-                        result.Append(pinyins[0]); // 使用第一个拼音
-                    }
-
-                    // 如果是代理对，跳过第二个char
-                    if (char.IsHighSurrogate(c) && i + 1 < segment.Length && char.IsLowSurrogate(segment[i + 1]))
-                    {
-                        i++;
-                    }
-                }
-                // 处理非中文字符
-                else if (_options.PreserveNonChinese)
-                {
-                    result.Append(segment[i]);
-                }
+                nonChineseBuffer.Append(segment);
             }
+        }
+
+        // 处理最后剩余的非中文字符
+        if (nonChineseBuffer.Length > 0)
+        {
+            if (!isFirstAppend) result.Append(separator);
+            result.Append(nonChineseBuffer);
         }
     }
 
@@ -165,18 +225,30 @@ internal class PinyinTextProcessor(OptimizedPinyinDatabase database)
     /// </summary>
     private async Task ProcessCharByChar(string text, PinyinFormat format, string separator, StringBuilder result)
     {
-        // 使用索引遍历而非foreach，以正确处理代理对
+        var nonChineseBuffer = new StringBuilder();
+        var isFirstAppend = true;
+
         for (var i = 0; i < text.Length; i++)
         {
             if (IsChineseAt(text, i))
             {
+                // 如果有缓冲的非中文字符，先处理它们
+                if (nonChineseBuffer.Length > 0)
+                {
+                    if (!isFirstAppend) result.Append(separator);
+                    result.Append(nonChineseBuffer);
+                    nonChineseBuffer.Clear();
+                    isFirstAppend = false;
+                }
+
                 var c = text[i];
                 var pinyins = await _database.GetCharPinyinAsync(c, format);
 
                 if (pinyins is { Length: > 0 })
                 {
-                    if (result.Length > 0) result.Append(separator);
+                    if (!isFirstAppend) result.Append(separator);
                     result.Append(pinyins[0]); // 使用第一个拼音
+                    isFirstAppend = false;
                 }
 
                 // 如果是代理对，跳过第二个char
@@ -187,8 +259,16 @@ internal class PinyinTextProcessor(OptimizedPinyinDatabase database)
             }
             else if (_options.PreserveNonChinese)
             {
-                result.Append(text[i]);
+                // 缓冲非中文字符，等待处理完连续的非中文字符后再一次性添加
+                nonChineseBuffer.Append(text[i]);
             }
+        }
+
+        // 处理最后剩余的非中文字符
+        if (nonChineseBuffer.Length > 0 && _options.PreserveNonChinese)
+        {
+            if (!isFirstAppend) result.Append(separator);
+            result.Append(nonChineseBuffer);
         }
     }
 
