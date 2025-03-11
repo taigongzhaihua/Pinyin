@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35731.43 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGZH.Pinyin", "TGZH.Pinyin.csproj", "{143B7860-B914-4790-9E53-53E63E6C782B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGZH.Pinyin.test", "..\TGZH.Pinyin.test\TGZH.Pinyin.test.csproj", "{E49925A4-C128-49C8-AB0F-99A18B267C15}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{143B7860-B914-4790-9E53-53E63E6C782B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{143B7860-B914-4790-9E53-53E63E6C782B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{143B7860-B914-4790-9E53-53E63E6C782B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{143B7860-B914-4790-9E53-53E63E6C782B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E49925A4-C128-49C8-AB0F-99A18B267C15}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{E49925A4-C128-49C8-AB0F-99A18B267C15}.Debug|Any CPU.Build.0 = Debug|x64
+		{E49925A4-C128-49C8-AB0F-99A18B267C15}.Debug|Any CPU.Deploy.0 = Debug|x64
+		{E49925A4-C128-49C8-AB0F-99A18B267C15}.Release|Any CPU.ActiveCfg = Release|x64
+		{E49925A4-C128-49C8-AB0F-99A18B267C15}.Release|Any CPU.Build.0 = Release|x64
+		{E49925A4-C128-49C8-AB0F-99A18B267C15}.Release|Any CPU.Deploy.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CA491364-056B-475B-BCCE-1A2C5EAD82A7}
+	EndGlobalSection
+EndGlobal
