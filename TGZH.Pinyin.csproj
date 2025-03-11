@@ -3,6 +3,12 @@
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>TGZH.Pinyin</RootNamespace>
+
+	  <Version>1.0.11</Version>
+	  <AssemblyVersion>1.0.0.11</AssemblyVersion>
+	  <FileVersion>1.0.0.11</FileVersion>
+	  <PackageVersion>1.0.11</PackageVersion>
+
 	  <PackageLicenseExpression>MIT</PackageLicenseExpression>
 	  <Description>高性能的中文拼音转换库，支持多种拼音格式和智能多音字处理</Description>
 	  <PackageTags>pinyin;chinese;hanzi;中文;拼音</PackageTags>
