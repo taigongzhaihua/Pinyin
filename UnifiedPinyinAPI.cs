@@ -182,6 +182,13 @@ public static class UnifiedPinyinApi
         return await _service.GetCharsPinyinBatchAsync(characters, format);
     }
 
+    public static async Task<Dictionary<string, string[]>> GetCharsPinyinBatchAsync(
+        string[] characters, PinyinFormat format = PinyinFormat.WithToneMark)
+    {
+        await InitializeOnDemandAsync();
+        return await _service.GetCharsPinyinBatchAsync(characters, format);
+    }
+
     /// <summary>
     /// 批量获取多个词语的拼音
     /// </summary>

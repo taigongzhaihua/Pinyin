@@ -764,12 +764,14 @@ internal partial class OptimizedPinyinDatabase : IDisposable
             return null;
         }
     }
+
     /// <summary>
-    /// 批量获取多个汉字的拼音
+    /// 批量获取多个汉字的拼音（字符数组版本）
     /// </summary>
-    /// <param name="chars">要查询的汉字数组</param>
+    /// <param name="chars">要查询的汉字字符数组</param>
     /// <param name="format">拼音格式</param>
-    /// <returns>拼音结果字典，键为汉字，值为拼音数组</returns>
+    /// <returns>拼音结果字典，键为汉字字符，值为拼音数组</returns>
+    /// <exception cref="InvalidOperationException">数据库未初始化时抛出</exception>
     public async Task<Dictionary<char, string[]>> GetCharsPinyinBatchAsync(
         char[] chars, PinyinFormat format)
     {
@@ -779,11 +781,58 @@ internal partial class OptimizedPinyinDatabase : IDisposable
         if (chars == null || chars.Length == 0)
             return [];
 
+        // 转换为字符串进行处理
+        var stringChars = chars.Distinct().Select(c => c.ToString()).ToArray();
+        var resultAsStrings = await GetPinyinBatchInternalAsync(stringChars, format);
+
+        // 转换回字符字典
         var result = new Dictionary<char, string[]>();
-        var uniqueChars = chars.Distinct().ToArray();
+        foreach (var kvp in resultAsStrings.Where(kvp => kvp.Key.Length == 1))
+        {
+            result[kvp.Key[0]] = kvp.Value;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 批量获取多个汉字的拼音（字符串数组版本）
+    /// </summary>
+    /// <param name="chars">要查询的汉字字符串数组，每个字符串应为单个汉字或有效的中文字符</param>
+    /// <param name="format">拼音格式</param>
+    /// <returns>拼音结果字典，键为汉字字符串，值为拼音数组</returns>
+    /// <exception cref="InvalidOperationException">数据库未初始化时抛出</exception>
+    /// <exception cref="ArgumentException">包含无效字符时抛出</exception>
+    public async Task<Dictionary<string, string[]>> GetCharsPinyinBatchAsync(
+        string[] chars, PinyinFormat format)
+    {
+        if (!_isInitialized)
+            throw new InvalidOperationException("数据库未初始化");
+
+        if (chars == null || chars.Length == 0)
+            return [];
+
+        if (chars.Any(c => !(c.Length == 1 || (ChineseCharacterUtils.IsChineseCodePoint(c, 0) && c.Length == 2))))
+        {
+            throw new ArgumentException("无效的字符");
+        }
+
+        return await GetPinyinBatchInternalAsync(chars.Distinct().ToArray(), format);
+    }
+
+    /// <summary>
+    /// 内部方法：批量获取拼音的核心逻辑实现
+    /// </summary>
+    /// <param name="uniqueChars">去重后的字符串数组</param>
+    /// <param name="format">拼音格式</param>
+    /// <returns>拼音结果字典，键为字符串，值为拼音数组</returns>
+    private async Task<Dictionary<string, string[]>> GetPinyinBatchInternalAsync(
+        string[] uniqueChars, PinyinFormat format)
+    {
+        var result = new Dictionary<string, string[]>();
+        var charsToQuery = new List<string>();
 
         // 从缓存获取
-        var charsToQuery = new List<char>();
         foreach (var c in uniqueChars)
         {
             if (_cacheManager.TryGetCharPinyin(c, format, out var cachedPinyin))
@@ -805,60 +854,59 @@ internal partial class OptimizedPinyinDatabase : IDisposable
         for (var i = 0; i < charsToQuery.Count; i += batchSize)
         {
             var batch = charsToQuery.Skip(i).Take(batchSize).ToArray();
-
-            // 构建批量查询SQL
-            var columnName = GetColumnName(format);
-            var sb = new StringBuilder();
-            var parameters = new List<SqliteParameter>();
-
-            sb.Append($"SELECT Character, {columnName} FROM Characters WHERE Character IN (");
-
-            for (var j = 0; j < batch.Length; j++)
-            {
-                var paramName = $"@p{j}";
-                if (j > 0) sb.Append(',');
-                sb.Append(paramName);
-                parameters.Add(new SqliteParameter(paramName, batch[j].ToString()));
-            }
-
-            sb.Append(')');
-
-            // 执行批量查询
-            await using var cmd = _connection.CreateCommand();
-            cmd.CommandText = sb.ToString();
-
-            foreach (var param in parameters)
-            {
-                cmd.Parameters.Add(param);
-            }
-
-            await using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                var charStr = reader.GetString(0);
-                if (charStr.Length != 1) continue;
-
-                var c = charStr[0];
-                var pinyin = reader.GetString(1).Split(',');
-
-                result[c] = pinyin;
-
-                // 添加到缓存
-                _cacheManager.AddCharPinyin(c.ToString(), format, pinyin);
-            }
-
-            // 处理未找到的字符
-            foreach (var c in batch.Where(c => !result.ContainsKey(c)))
-            {
-                var defaultPinyin = new[] { c.ToString() };
-                result[c] = defaultPinyin;
-
-                // 缓存默认结果
-                _cacheManager.AddCharPinyin(c.ToString(), format, defaultPinyin);
-            }
+            await ProcessBatchAsync(batch, format, result);
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 内部方法：处理单个批次的拼音查询
+    /// </summary>
+    /// <param name="batch">当前批次的字符串数组</param>
+    /// <param name="format">拼音格式</param>
+    /// <param name="result">存储结果的字典，会直接修改此对象</param>
+    /// <returns>异步任务</returns>
+    private async Task ProcessBatchAsync(string[] batch, PinyinFormat format, Dictionary<string, string[]> result)
+    {
+        var columnName = GetColumnName(format);
+        var parameters = new List<SqliteParameter>();
+        var sb = new StringBuilder();
+
+        sb.Append($"SELECT Character, {columnName} FROM Characters WHERE Character IN (");
+
+        for (var j = 0; j < batch.Length; j++)
+        {
+            var paramName = $"@p{j}";
+            if (j > 0) sb.Append(',');
+            sb.Append(paramName);
+            parameters.Add(new SqliteParameter(paramName, batch[j]));
+        }
+
+        sb.Append(')');
+
+        // 执行批量查询
+        await using var cmd = _connection.CreateCommand();
+        cmd.CommandText = sb.ToString();
+        cmd.Parameters.AddRange(parameters);
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var charStr = reader.GetString(0);
+            var pinyin = reader.GetString(1).Split(',');
+
+            result[charStr] = pinyin;
+            _cacheManager.AddCharPinyin(charStr, format, pinyin);
+        }
+
+        // 处理未找到的字符
+        foreach (var c in batch.Where(c => !result.ContainsKey(c)))
+        {
+            var defaultPinyin = new[] { c };
+            result[c] = defaultPinyin;
+            _cacheManager.AddCharPinyin(c, format, defaultPinyin);
+        }
     }
 
     /// <summary>

@@ -145,6 +145,18 @@ internal partial class PinyinService : IDisposable
         return await _database.GetCharsPinyinBatchAsync(characters, format);
     }
 
+    public async Task<Dictionary<string, string[]>> GetCharsPinyinBatchAsync(
+        string[] characters, PinyinFormat format)
+    {
+        EnsureInitialized();
+
+        if (characters == null || characters.Length == 0)
+            return [];
+
+        // 调用优化的数据库批量方法
+        return await _database.GetCharsPinyinBatchAsync(characters, format);
+    }
+
     /// <summary>
     /// 批量获取多个词语的拼音
     /// </summary>

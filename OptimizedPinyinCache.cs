@@ -190,6 +190,16 @@ internal class PinyinCacheManager
                formatDict.TryGetValue(format, out pinyin);
     }
 
+    public bool TryGetCharPinyin(string c, PinyinFormat format, out string[] pinyin)
+    {
+        pinyin = null;
+
+        if (!_enableCache)
+            return false;
+
+        return _charCache.TryGetValue(c, out var formatDict) &&
+               formatDict.TryGetValue(format, out pinyin);
+    }
     /// <summary>
     /// 尝试从缓存获取词语拼音
     /// </summary>
