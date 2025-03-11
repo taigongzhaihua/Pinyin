@@ -3,8 +3,13 @@
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>TGZH.Pinyin</RootNamespace>
+	  <PackageLicenseExpression>MIT</PackageLicenseExpression>
+	  <Description>高性能的中文拼音转换库，支持多种拼音格式和智能多音字处理</Description>
+	  <PackageTags>pinyin;chinese;hanzi;中文;拼音</PackageTags>
+	  <PackageProjectUrl>https://github.com/taigongzhaihua/TGZH.Pinyin</PackageProjectUrl>
+	  <RepositoryUrl>https://github.com/taigongzhaihua/TGZH.Pinyin.git</RepositoryUrl>
+	  <PackageReadmeFile>README.md</PackageReadmeFile>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
-    <UseWinUI>true</UseWinUI>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Resources\BasicCharacterPinyin.txt" />
@@ -15,6 +20,7 @@
     <EmbeddedResource Include="Resources\BasicWordPinyin.txt" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250205002" />
   </ItemGroup>
