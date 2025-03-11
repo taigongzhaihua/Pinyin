@@ -804,7 +804,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 parameters.Add(new SqliteParameter(paramName, batch[j].ToString()));
             }
 
-            sb.Append(")");
+            sb.Append(')');
 
             // 执行批量查询
             await using var cmd = _connection.CreateCommand();
@@ -944,7 +944,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 }
 
                 // 批量查询单字拼音
-                var charDict = await GetCharsPinyinBatchAsync(allChars.ToArray(), format);
+                var charDict = await GetCharsPinyinBatchAsync([.. allChars], format);
 
                 // 为每个未查到的词语组合单字拼音
                 foreach (var word in missingWords)
