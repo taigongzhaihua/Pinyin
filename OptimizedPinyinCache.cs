@@ -125,13 +125,13 @@ internal class LruCache<TKey, TValue>(int capacity) where TKey : notnull
 internal class PinyinCacheManager
 {
     // 汉字拼音缓存
-    private readonly LruCache<char, Dictionary<PinyinFormat, string[]>> _charCache;
+    private readonly LruCache<string, Dictionary<PinyinFormat, string[]>> _charCache;
 
     // 词语拼音缓存
     private readonly LruCache<string, Dictionary<PinyinFormat, string>> _wordCache;
 
     // 常用字符集
-    private readonly HashSet<char> _commonChars = [];
+    private readonly HashSet<string> _commonChars = [];
 
     // 是否启用缓存
     private bool _enableCache = true;
@@ -143,7 +143,7 @@ internal class PinyinCacheManager
     /// <param name="wordCacheSize">词语缓存大小</param>
     public PinyinCacheManager(int charCacheSize = 10000, int wordCacheSize = 5000)
     {
-        _charCache = new LruCache<char, Dictionary<PinyinFormat, string[]>>(charCacheSize);
+        _charCache = new LruCache<string, Dictionary<PinyinFormat, string[]>>(charCacheSize);
         _wordCache = new LruCache<string, Dictionary<PinyinFormat, string>>(wordCacheSize);
 
         // 初始化常用字符集
@@ -157,9 +157,9 @@ internal class PinyinCacheManager
     {
         // 添加一些常用汉字
         const string commonChars = "的一是了我不人在他有这个上们来到时大地为子中你说生国年着就那和要她出也得里后自以会家可下而过天去能对小多然于好心东方";
-        foreach (var c in commonChars)
+        for (var i = 0; i < commonChars.Length; i++)
         {
-            _commonChars.Add(c);
+            _commonChars.Add(commonChars[i].ToString());
         }
     }
 
@@ -186,7 +186,7 @@ internal class PinyinCacheManager
         if (!_enableCache)
             return false;
 
-        return _charCache.TryGetValue(c, out var formatDict) &&
+        return _charCache.TryGetValue(c.ToString(), out var formatDict) &&
                formatDict.TryGetValue(format, out pinyin);
     }
 
@@ -207,7 +207,7 @@ internal class PinyinCacheManager
     /// <summary>
     /// 添加字符拼音到缓存
     /// </summary>
-    public void AddCharPinyin(char c, PinyinFormat format, string[] pinyin)
+    public void AddCharPinyin(string c, PinyinFormat format, string[] pinyin)
     {
         if (!_enableCache)
             return;
@@ -252,6 +252,6 @@ internal class PinyinCacheManager
     /// </summary>
     public bool IsCommonChar(char c)
     {
-        return _commonChars.Contains(c);
+        return _commonChars.Contains(c.ToString());
     }
 }

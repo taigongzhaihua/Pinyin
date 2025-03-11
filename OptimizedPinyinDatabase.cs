@@ -567,6 +567,22 @@ internal partial class OptimizedPinyinDatabase : IDisposable
         return await taskCompletionSource.Task;
     }
 
+    public async Task<string[]> GetCharPinyinAsync(string c, PinyinFormat format)
+    {
+        if (!_isInitialized)
+            throw new InvalidOperationException("数据库未初始化");
+
+        // 创建查询任务
+        var taskCompletionSource = new TaskCompletionSource<string[]>();
+        _queryQueue.Enqueue(new QueuedQuery
+        {
+            Character = c,
+            Format = format,
+            Result = taskCompletionSource
+        });
+        return await taskCompletionSource.Task;
+    }
+
     /// <summary>
     /// 处理查询队列
     /// </summary>
@@ -593,7 +609,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
             foreach (var group in queryGroups)
             {
                 var format = group.Key;
-                var charsToQuery = group.Select(q => q.Character).Distinct().ToArray();
+                var charsToQuery = group.Select(q => q.Character.ToString()).Distinct().ToArray();
 
                 // 批量查询数据库
                 var results = await BatchQueryCharactersAsync(charsToQuery, format);
@@ -601,12 +617,12 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 // 设置查询结果
                 foreach (var query in group)
                 {
-                    if (results.TryGetValue(query.Character, out var pinyin))
+                    if (results.TryGetValue(query.Character.ToString()!, out var pinyin))
                     {
                         query.Result.SetResult(pinyin);
 
                         // 添加到缓存
-                        _cacheManager.AddCharPinyin(query.Character, format, pinyin);
+                        _cacheManager.AddCharPinyin(query.Character.ToString(), format, pinyin);
                     }
                     else
                     {
@@ -615,7 +631,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                         query.Result.SetResult(defaultResult);
 
                         // 缓存默认结果
-                        _cacheManager.AddCharPinyin(query.Character, format, defaultResult);
+                        _cacheManager.AddCharPinyin(query.Character.ToString(), format, defaultResult);
                     }
                 }
             }
@@ -634,13 +650,13 @@ internal partial class OptimizedPinyinDatabase : IDisposable
     /// <summary>
     /// 批量查询汉字拼音
     /// </summary>
-    private async Task<Dictionary<char, string[]>> BatchQueryCharactersAsync(
-        char[] chars, PinyinFormat format)
+    private async Task<Dictionary<string, string[]>> BatchQueryCharactersAsync(
+        string[] chars, PinyinFormat format)
     {
         if (_connection == null || chars.Length == 0)
             return [];
 
-        var result = new Dictionary<char, string[]>();
+        var result = new Dictionary<string, string[]>();
         var columnName = GetColumnName(format);
 
         // 分批处理，避免参数过多
@@ -659,7 +675,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 if (j > 0)
                     placeholders.Append(',');
                 placeholders.Append(paramName);
-                parameters.Add(new SqliteParameter(paramName, batch[j].ToString()));
+                parameters.Add(new SqliteParameter(paramName, batch[j]));
             }
 
             // 执行查询
@@ -671,7 +687,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                                                    WHERE Character IN ({placeholders})
                                                
                                """;
-
+            Debug.WriteLine(cmd.CommandText);
             foreach (var param in parameters)
             {
                 cmd.Parameters.Add(param);
@@ -684,11 +700,12 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 var pinyin = reader.GetString(1).Split(',');
 
                 // 只处理单个字符
-                if (charStr.Length != 1)
+                if (!(charStr.Length == 1 || (ChineseCharacterUtils.IsChineseCodePoint(charStr, 0) && charStr.Length == 2)))
                     continue;
 
-                result[charStr[0]] = pinyin;
+                result[charStr] = pinyin;
             }
+            Debug.WriteLine(result);
         }
 
         return result;
@@ -827,7 +844,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 result[c] = pinyin;
 
                 // 添加到缓存
-                _cacheManager.AddCharPinyin(c, format, pinyin);
+                _cacheManager.AddCharPinyin(c.ToString(), format, pinyin);
             }
 
             // 处理未找到的字符
@@ -837,7 +854,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 result[c] = defaultPinyin;
 
                 // 缓存默认结果
-                _cacheManager.AddCharPinyin(c, format, defaultPinyin);
+                _cacheManager.AddCharPinyin(c.ToString(), format, defaultPinyin);
             }
         }
 
@@ -1013,10 +1030,10 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 var c = charStr[0];
 
                 // 加载各种格式到缓存
-                _cacheManager.AddCharPinyin(c, PinyinFormat.WithToneMark, reader.GetString(1).Split(','));
-                _cacheManager.AddCharPinyin(c, PinyinFormat.WithoutTone, reader.GetString(2).Split(','));
-                _cacheManager.AddCharPinyin(c, PinyinFormat.WithToneNumber, reader.GetString(3).Split(','));
-                _cacheManager.AddCharPinyin(c, PinyinFormat.FirstLetter, reader.GetString(4).Split(','));
+                _cacheManager.AddCharPinyin(c.ToString(), PinyinFormat.WithToneMark, reader.GetString(1).Split(','));
+                _cacheManager.AddCharPinyin(c.ToString(), PinyinFormat.WithoutTone, reader.GetString(2).Split(','));
+                _cacheManager.AddCharPinyin(c.ToString(), PinyinFormat.WithToneNumber, reader.GetString(3).Split(','));
+                _cacheManager.AddCharPinyin(c.ToString(), PinyinFormat.FirstLetter, reader.GetString(4).Split(','));
             }
         }
         catch (Exception ex)
@@ -1043,7 +1060,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
     /// </summary>
     private class QueuedQuery
     {
-        public char Character { get; init; }
+        public object Character { get; init; }
         public PinyinFormat Format { get; init; }
         public TaskCompletionSource<string[]> Result { get; init; }
     }

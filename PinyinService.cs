@@ -56,6 +56,19 @@ internal partial class PinyinService : IDisposable
         return await _database.GetCharPinyinAsync(c, format);
     }
 
+    public async Task<string[]> GetCharPinyinAsync(string c, PinyinFormat format = PinyinFormat.WithToneMark)
+    {
+        EnsureInitialized();
+        if (c.Length > 1)
+        {
+            if (ChineseCharacterUtils.IsChineseCodePoint(c, 0) && c.Length == 2)
+            {
+                return await _database.GetCharPinyinAsync(c, format);
+            }
+            throw new InvalidOperationException("只能输入一个汉字");
+        }
+        return await _database.GetCharPinyinAsync(c, format);
+    }
     /// <summary>
     /// 获取文本的拼音
     /// </summary>

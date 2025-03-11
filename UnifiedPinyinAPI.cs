@@ -85,6 +85,12 @@ public static class UnifiedPinyinApi
         return await _service.GetCharPinyinAsync(c, format);
     }
 
+    public static async Task<string[]> GetCharPinyinAsync(string c, PinyinFormat format = PinyinFormat.WithToneMark)
+    {
+        await InitializeOnDemandAsync();
+        return await _service.GetCharPinyinAsync(c, format);
+    }
+
     /// <summary>
     /// 获取文本的拼音
     /// </summary>
