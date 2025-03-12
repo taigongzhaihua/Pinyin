@@ -812,12 +812,13 @@ internal partial class OptimizedPinyinDatabase : IDisposable
         if (chars == null || chars.Length == 0)
             return [];
 
-        if (chars.Any(c => !(c.Length == 1 || (ChineseCharacterUtils.IsChineseCodePoint(c, 0) && c.Length == 2))))
+        // 检查字符是否有效
+        if (chars.Any(c => ChineseCharacterUtils.CountChineseCharacters(c) != 1))
         {
-            throw new ArgumentException("无效的字符");
+            throw new ArgumentException("包含无效字符", nameof(chars));
         }
 
-        return await GetPinyinBatchInternalAsync(chars.Distinct().ToArray(), format);
+        return await GetPinyinBatchInternalAsync([.. chars.Distinct()], format);
     }
 
     /// <summary>
@@ -914,9 +915,10 @@ internal partial class OptimizedPinyinDatabase : IDisposable
     /// </summary>
     /// <param name="words">要查询的词语数组</param>
     /// <param name="format">拼音格式</param>
+    /// <param name="isRemoveNotFoundWords"></param>
     /// <returns>拼音结果字典，键为词语，值为拼音</returns>
     public async Task<Dictionary<string, string>> GetWordsPinyinBatchAsync(
-        string[] words, PinyinFormat format)
+        string[] words, PinyinFormat format, bool isRemoveNotFoundWords = false)
     {
         if (!_isInitialized)
             throw new InvalidOperationException("数据库未初始化");
@@ -995,50 +997,53 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 _cacheManager.AddWordPinyin(word, format, pinyin);
             }
 
-            // 找出未查到的词语
-            var missingWords = batch.Except(foundWords).ToList();
-
-            // 如果有未查到的词语，从单字表中查询
-            if (missingWords.Count <= 0) continue;
+            if (isRemoveNotFoundWords) continue;
             {
-                // 收集所有需要查询的单字
-                var allChars = new HashSet<char>();
-                foreach (var c in missingWords.SelectMany(word => word))
+                // 找出未查到的词语
+                var missingWords = batch.Except(foundWords).ToList();
+
+                // 如果有未查到的词语，从单字表中查询
+                if (missingWords.Count <= 0) continue;
                 {
-                    allChars.Add(c);
-                }
-
-                // 批量查询单字拼音
-                var charDict = await GetCharsPinyinBatchAsync([.. allChars], format);
-
-                // 为每个未查到的词语组合单字拼音
-                foreach (var word in missingWords)
-                {
-                    var combinedPinyin = new StringBuilder();
-                    var allCharsFound = true;
-
-                    foreach (var c in word)
+                    // 收集所有需要查询的单字
+                    var allChars = new HashSet<char>();
+                    foreach (var c in missingWords.SelectMany(word => word))
                     {
-                        if (charDict.TryGetValue(c, out var charPinyin))
-                        {
-                            if (combinedPinyin.Length > 0)
-                                combinedPinyin.Append(' '); // 或其他分隔符，根据format决定
-                            combinedPinyin.Append(charPinyin[0]);
-
-                        }
-                        else
-                        {
-                            allCharsFound = false;
-                            break;
-                        }
+                        allChars.Add(c);
                     }
 
-                    if (!allCharsFound) continue;
-                    var wordPinyin = combinedPinyin.ToString();
-                    result[word] = wordPinyin;
+                    // 批量查询单字拼音
+                    var charDict = await GetCharsPinyinBatchAsync([.. allChars], format);
 
-                    // 添加到缓存
-                    _cacheManager.AddWordPinyin(word, format, wordPinyin);
+                    // 为每个未查到的词语组合单字拼音
+                    foreach (var word in missingWords)
+                    {
+                        var combinedPinyin = new StringBuilder();
+                        var allCharsFound = true;
+
+                        foreach (var c in word)
+                        {
+                            if (charDict.TryGetValue(c, out var charPinyin))
+                            {
+                                if (combinedPinyin.Length > 0)
+                                    combinedPinyin.Append(' '); // 或其他分隔符，根据format决定
+                                combinedPinyin.Append(charPinyin[0]);
+
+                            }
+                            else
+                            {
+                                allCharsFound = false;
+                                break;
+                            }
+                        }
+
+                        if (!allCharsFound) continue;
+                        var wordPinyin = combinedPinyin.ToString();
+                        result[word] = wordPinyin;
+
+                        // 添加到缓存
+                        _cacheManager.AddWordPinyin(word, format, wordPinyin);
+                    }
                 }
             }
         }

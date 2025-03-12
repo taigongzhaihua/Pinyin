@@ -332,6 +332,16 @@ class Program
 ```
 
 ---
+## 特别鸣谢
+
+TGZH.Pinyin 使用了以下开源数据：
+
+- 汉字拼音数据来源于 [pinyin-data](https://github.com/mozillazg/pinyin-data)，基于 [MIT 许可证](https://github.com/mozillazg/pinyin-data?tab=MIT-1-ov-file)
+- 词语拼音数据来源于 [phrase-pinyin-data](https://github.com/mozillazg/phrase-pinyin-data)，基于 [MIT 许可证](https://github.com/mozillazg/phrase-pinyin-data?tab=MIT-1-ov-file)
+
+感谢 [@mozillazg](https://github.com/mozillazg) 的工作使本项目得以实现。
+
+本软件由Copilot辅助编写，若与其他开源项目雷同，作者不承担任何责任。
 
 ## 许可证
 

@@ -68,12 +68,7 @@ internal static partial class EnhancedPinyinConverter
             return string.Empty;
 
         // 处理多音节
-        if (pinyin.Contains(' '))
-        {
-            return string.Join(" ", pinyin.Split(' ').Select(ToToneNumberSingle));
-        }
-
-        return ToToneNumberSingle(pinyin);
+        return pinyin.Contains(' ') ? string.Join(" ", pinyin.Split(' ').Select(ToToneNumberSingle)) : ToToneNumberSingle(pinyin);
     }
 
     /// <summary>

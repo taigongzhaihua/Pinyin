@@ -36,7 +36,7 @@ public static partial class PinyinUtils
         var editDistance = ComputeLevenshteinDistance(s1, s2);
         var maxLength = Math.Max(s1.Length, s2.Length);
 
-        return 1.0 - ((double)editDistance / maxLength);
+        return 1.0 - (double)editDistance / maxLength;
     }
 
     /// <summary>
@@ -208,6 +208,7 @@ public static partial class PinyinUtils
     private static partial Regex SpaceRegex();
 
     // 正则表达式：合法拼音字符串
-    [GeneratedRegex("^[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜüA-ZĀÁǍÀĒÉĚÈĪÍǏÌŌÓǑÒŪÚǓÙǕǗǙǛÜ0-9]+$")]
+    [GeneratedRegex("^(([bpmfdthknljqxzcsryw]|[zcs]h)?[iu]?([aāáǎà][on]?|[eēéěè][inr]?|[aāáǎàeēéěè]ng|[au]?[iīíǐì]|[iīíǐì]ng?|((?:jqxy)[uūúǔù]|[üǖǘǚǜv])e?|i?[uūúǔù]|[oōóǒò]u?)[0-9]?)+$", RegexOptions.IgnoreCase)]
+    [SuppressMessage("ReSharper", "StringLiteralTypo")]
     private static partial Regex PinyinValidRegex();
 }
