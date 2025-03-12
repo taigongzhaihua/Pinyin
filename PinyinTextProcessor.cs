@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace TGZH.Pinyin;
@@ -12,7 +13,7 @@ namespace TGZH.Pinyin;
 /// <remarks>
 /// 创建拼音文本处理器
 /// </remarks>
-internal class PinyinTextProcessor(OptimizedPinyinDatabase database)
+internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
 {
     private readonly OptimizedPinyinDatabase _database = database ?? throw new ArgumentNullException(nameof(database));
     private PinyinServiceOptions _options;
@@ -143,14 +144,14 @@ internal class PinyinTextProcessor(OptimizedPinyinDatabase database)
                     pinyin = "?"; // 未找到拼音
                 }
 
-                if (!isFirstAppend) result.Append(separator);
+                if (!isFirstAppend && (ChineseCharacterUtils.ContainsChinese(characters[i - 1]) || IsEnglishRegex().IsMatch(characters[i - 1]))) result.Append(separator);
                 result.Append(pinyin);
                 isFirstAppend = false;
             }
             // 处理非中文字符
             else if (_options.PreserveNonChinese)
             {
-                if (!isFirstAppend) result.Append(separator);
+                if (!isFirstAppend && ChineseCharacterUtils.ContainsChinese(characters[i - 1]) && IsEnglishRegex().IsMatch(c)) result.Append(separator);
                 result.Append(c);
                 isFirstAppend = false;
             }
@@ -424,4 +425,7 @@ internal class PinyinTextProcessor(OptimizedPinyinDatabase database)
         public string[] PossiblePinyins { get; set; }
         public string ResolvedPinyin { get; set; }
     }
+
+    [GeneratedRegex("[a-zA-Z0-9]")]
+    private static partial Regex IsEnglishRegex();
 }
