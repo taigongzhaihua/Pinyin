@@ -55,8 +55,9 @@ internal partial class OptimizedPinyinDatabase : IDisposable
         if (!Directory.Exists(pinyinDir))
         {
             Directory.CreateDirectory(pinyinDir);
-        }
 
+        }
+        Debug.WriteLine(pinyinDir);
         return Path.Combine(pinyinDir, "PinyinData.db");
     }
 
@@ -79,7 +80,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 EnsureDatabaseFileExists();
 
                 // 打开数据库连接
-                var connectionString = $"Data Source={_dbPath}";
+                var connectionString = $"Data Source={_dbPath};Cache=Shared;";
                 _connection = new SqliteConnection(connectionString);
                 _connection.Open();
 
@@ -405,11 +406,9 @@ internal partial class OptimizedPinyinDatabase : IDisposable
             withTone = string.Join(",", pinyins.Select(p => p.Trim()));
 
             // 转换其他格式
-            withoutTone = string.Join(",", pinyins.Select(p => EnhancedPinyinConverter.RemoveToneMarks(p.Trim())));
+            withoutTone = string.Join(",", pinyins.Select(p => EnhancedPinyinConverter.RemoveToneMarks(p.Trim())).Distinct());
             withNumber = string.Join(",", pinyins.Select(p => EnhancedPinyinConverter.ToToneNumber(p.Trim())));
-
-            // 首字母使用第一个拼音的首字母
-            firstLetter = EnhancedPinyinConverter.RemoveToneMarks(pinyins[0].Trim())[0].ToString();
+            firstLetter = string.Join(",", pinyins.Select(p => EnhancedPinyinConverter.GetFirstLetters(p.Trim())).Distinct());
 
             return true;
         }
@@ -520,13 +519,16 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 return false;
 
             withTone = pinyinPart;
-            withoutTone = EnhancedPinyinConverter.RemoveToneMarks(withTone);
+            // 无声调去重
+            withoutTone = EnhancedPinyinConverter.RemoveToneMarks(pinyinPart);
+
             withNumber = EnhancedPinyinConverter.ToToneNumber(withTone);
 
             // 计算首字母
             var sb = new StringBuilder();
             foreach (var part in withoutTone.Split(' '))
             {
+                if (sb.Length > 0) sb.Append(' '); // 添加空格分隔
                 if (!string.IsNullOrEmpty(part))
                     sb.Append(part[0]);
             }
@@ -815,6 +817,7 @@ internal partial class OptimizedPinyinDatabase : IDisposable
         // 检查字符是否有效
         if (chars.Any(c => ChineseCharacterUtils.CountChineseCharacters(c) != 1))
         {
+
             throw new ArgumentException("包含无效字符", nameof(chars));
         }
 
@@ -1006,12 +1009,16 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                 if (missingWords.Count <= 0) continue;
                 {
                     // 收集所有需要查询的单字
-                    var allChars = new HashSet<char>();
-                    foreach (var c in missingWords.SelectMany(word => word))
+                    var allChars = new HashSet<string>();
+                    foreach (var ch in missingWords.SelectMany(SimpleTextSegmenter.SplitToChars))
                     {
-                        allChars.Add(c);
+                        allChars.Add(ch);
                     }
+                    // 去重
+                    allChars.RemoveWhere(c => c == null || result.ContainsKey(c));
 
+                    // 去除非中文字符
+                    allChars.RemoveWhere(c => c == null || !ChineseCharacterUtils.IsChineseCodePoint(c, 0));
                     // 批量查询单字拼音
                     var charDict = await GetCharsPinyinBatchAsync([.. allChars], format);
 
@@ -1021,13 +1028,17 @@ internal partial class OptimizedPinyinDatabase : IDisposable
                         var combinedPinyin = new StringBuilder();
                         var allCharsFound = true;
 
-                        foreach (var c in word)
+                        foreach (var c in SimpleTextSegmenter.SplitToChars(word))
                         {
+                            if (c == null) continue;
                             if (charDict.TryGetValue(c, out var charPinyin))
                             {
                                 if (combinedPinyin.Length > 0)
                                     combinedPinyin.Append(' '); // 或其他分隔符，根据format决定
-                                combinedPinyin.Append(charPinyin[0]);
+                                if (charPinyin.Length == 1)
+                                    combinedPinyin.Append(charPinyin[0]);
+                                else
+                                    combinedPinyin.Append(charPinyin[0]);
 
                             }
                             else

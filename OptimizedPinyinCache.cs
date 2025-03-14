@@ -21,23 +21,31 @@ internal class LruCache<TKey, TValue>(int capacity) where TKey : notnull
     private readonly LinkedList<CacheItem> _lruList = [];
     private readonly ReaderWriterLockSlim _lock = new();
 
-    /// <summary>
-    /// 尝试获取缓存项
-    /// </summary>
-    public bool TryGetValue(TKey key, out TValue value)
+    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
     {
         value = default;
 
         if (!_cache.TryGetValue(key, out var node))
             return false;
 
+        // 防止在访问节点值之前就失效
+        var cachedValue = node.Value.Value;
+
         _lock.EnterWriteLock();
         try
         {
+            // 再次检查节点是否还有效
+            if (!_cache.TryGetValue(key, out node)) return false;
             // 移到链表头部（最近使用）
             _lruList.Remove(node);
-            _lruList.AddFirst(node);
-            value = node.Value.Value;
+
+            // 创建新节点而不是重用旧节点
+            var cacheItem = new CacheItem { Key = key, Value = node.Value.Value };
+            var newNode = new LinkedListNode<CacheItem>(cacheItem);
+
+            _lruList.AddFirst(newNode);
+            _cache[key] = newNode;
+            value = cachedValue;
             return true;
         }
         finally
@@ -45,7 +53,6 @@ internal class LruCache<TKey, TValue>(int capacity) where TKey : notnull
             _lock.ExitWriteLock();
         }
     }
-
     /// <summary>
     /// 添加或更新缓存项
     /// </summary>
@@ -157,9 +164,9 @@ internal class PinyinCacheManager
     {
         // 添加一些常用汉字
         const string commonChars = "的一是了我不人在他有这个上们来到时大地为子中你说生国年着就那和要她出也得里后自以会家可下而过天去能对小多然于好心东方";
-        for (var i = 0; i < commonChars.Length; i++)
+        foreach (var t in commonChars)
         {
-            _commonChars.Add(commonChars[i].ToString());
+            _commonChars.Add(t.ToString());
         }
     }
 

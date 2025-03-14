@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,9 +20,6 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
     private PinyinServiceOptions _options;
     private bool _isInitialized;
 
-    // 常见的多音字上下文映射
-    private readonly Dictionary<string, Dictionary<char, string>> _contextMapping =
-        [];
 
     /// <summary>
     /// 初始化文本处理器
@@ -29,44 +27,10 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
     public Task InitializeAsync(PinyinServiceOptions options)
     {
         _options = options ?? new PinyinServiceOptions();
-        InitializePolyphoneContext();
         _isInitialized = true;
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// 初始化常见多音字上下文映射
-    /// </summary>
-    private void InitializePolyphoneContext()
-    {
-        // 根据上下文确定多音字读音的规则
-        // 格式: 上下文词组 -> 多音字 -> 对应读音
-
-        // 处理"长"字
-        _contextMapping["长江"] = new Dictionary<char, string> { { '长', "cháng" } };
-        _contextMapping["长城"] = new Dictionary<char, string> { { '长', "cháng" } };
-        _contextMapping["长度"] = new Dictionary<char, string> { { '长', "cháng" } };
-        _contextMapping["长短"] = new Dictionary<char, string> { { '长', "cháng" } };
-        _contextMapping["成长"] = new Dictionary<char, string> { { '长', "zhǎng" } };
-        _contextMapping["生长"] = new Dictionary<char, string> { { '长', "zhǎng" } };
-        _contextMapping["长大"] = new Dictionary<char, string> { { '长', "zhǎng" } };
-
-        // 处理"乐"字
-        _contextMapping["音乐"] = new Dictionary<char, string> { { '乐', "yuè" } };
-        _contextMapping["乐器"] = new Dictionary<char, string> { { '乐', "yuè" } };
-        _contextMapping["乐谱"] = new Dictionary<char, string> { { '乐', "yuè" } };
-        _contextMapping["快乐"] = new Dictionary<char, string> { { '乐', "lè" } };
-        _contextMapping["娱乐"] = new Dictionary<char, string> { { '乐', "lè" } };
-
-        // 处理"行"字
-        _contextMapping["行走"] = new Dictionary<char, string> { { '行', "xíng" } };
-        _contextMapping["行为"] = new Dictionary<char, string> { { '行', "xíng" } };
-        _contextMapping["行列"] = new Dictionary<char, string> { { '行', "háng" } };
-        _contextMapping["银行"] = new Dictionary<char, string> { { '行', "háng" } };
-        _contextMapping["行业"] = new Dictionary<char, string> { { '行', "háng" } };
-
-        // 添加更多常见多音字的处理规则...
-    }
 
     /// <summary>
     /// 获取文本的拼音（优化批量处理版本）
@@ -84,7 +48,7 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
 
         // 2. 识别中文字符并去重
         var uniqueChineseChars = characters
-            .Where(c => ChineseCharacterUtils.IsChineseCodePoint(c, 0))
+            .Where(c => ChineseCharacterUtils.IsChineseCodePoint(c, index: 0))
             .Distinct()
             .ToArray();
 
@@ -100,7 +64,7 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
 
             if (!pinyinDict.TryGetValue(c, out var pinyins) || pinyins.Length <= 1) continue;
             // 是多音字，提取前后文
-            var context = ExtractContext(characters, i, 10);
+            var context = TextUtils.ExtractContext(characters, i, 10);
             polyphoneItems.Add(new PolyphoneItem
             {
                 Index = i,
@@ -144,14 +108,21 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
                     pinyin = "?"; // 未找到拼音
                 }
 
-                if (!isFirstAppend && (ChineseCharacterUtils.ContainsChinese(characters[i - 1]) || IsEnglishRegex().IsMatch(characters[i - 1]))) result.Append(separator);
+                if (i > 0)
+                {
+                    var x = characters[i - 1].ToString();
+                    if (!isFirstAppend && x != null &&
+                        ChineseCharacterUtils.ContainsChinese(x))
+                        result.Append(separator);
+                }
+
                 result.Append(pinyin);
                 isFirstAppend = false;
             }
             // 处理非中文字符
             else if (_options.PreserveNonChinese)
             {
-                if (!isFirstAppend && ChineseCharacterUtils.ContainsChinese(characters[i - 1]) && IsEnglishRegex().IsMatch(c)) result.Append(separator);
+                if (!isFirstAppend && ChineseCharacterUtils.ContainsChinese(characters[i - 1])) result.Append(separator);
                 result.Append(c);
                 isFirstAppend = false;
             }
@@ -160,38 +131,6 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
         return result.ToString();
     }
 
-    /// <summary>
-    /// 提取字符周围的上下文
-    /// </summary>
-    private static string ExtractContext(string[] characters, int position, int range)
-    {
-        var result = new StringBuilder();
-
-        // 向前提取
-        var startPos = Math.Max(0, position - range);
-        for (var i = position - 1; i >= startPos; i--)
-        {
-            if (ChineseCharacterUtils.ContainsChinese(characters[i]))
-                result.Insert(0, characters[i]);
-            else
-                break; // 遇到非中文字符停止
-        }
-
-        // 添加当前字符
-        result.Append(characters[position]);
-
-        // 向后提取
-        var endPos = Math.Min(characters.Length - 1, position + range);
-        for (var i = position + 1; i <= endPos; i++)
-        {
-            if (ChineseCharacterUtils.ContainsChinese(characters[i]))
-                result.Append(characters[i]);
-            else
-                break; // 遇到非中文字符停止
-        }
-
-        return result.ToString();
-    }
 
     /// <summary>
     /// 解析多音字
@@ -201,7 +140,8 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
         // 创建所有可能的词语组合查询
         var wordQueries = new List<string>();
 
-        foreach (var contexts in items.Select(item => ExtractPossibleWordContexts(item.Context, item.Character)))
+        foreach (var contexts in items.Select(item => TextUtils.ExtractPossibleWordContexts(item.Context,
+                     item.Character, _options.MaxWordLength > 0 ? _options.MaxWordLength : 10)))
         {
             wordQueries.AddRange(contexts);
         }
@@ -216,7 +156,8 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
         foreach (var item in items)
         {
             // 提取上下文中的所有可能词语
-            var contexts = ExtractPossibleWordContexts(item.Context, item.Character)
+            var contexts = TextUtils.ExtractPossibleWordContexts(item.Context, item.Character,
+                    _options.MaxWordLength > 0 ? _options.MaxWordLength : 10)
                 .OrderByDescending(ChineseCharacterUtils.CountChineseCharacters) // 按长度排序，优先使用长词
                 .ToList();
 
@@ -241,38 +182,9 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
         }
     }
 
-    /// <summary>
-    /// 从上下文中提取所有可能包含目标字符的词语组合
-    /// </summary>
-    private List<string> ExtractPossibleWordContexts(string context, string targetChar)
-    {
-        var results = new List<string>();
-        var maxLength = _options.MaxWordLength > 0 ? _options.MaxWordLength : 10;
-
-        var targetPos = context.IndexOf(targetChar, StringComparison.Ordinal);
-        if (targetPos < 0) return results;
-
-        // 提取所有可能的包含目标字符的子字符串，长度从2到maxLength
-        for (var len = 2; len <= Math.Min(maxLength, context.Length); len++)
-        {
-            // 以目标字符为中心，向两侧扩展
-            for (var start = Math.Max(0, targetPos - len + 1); start <= targetPos; start++)
-            {
-                if (start + len > context.Length) continue;
-
-                var word = context.Substring(start, len);
-                if (word.Contains(targetChar))
-                {
-                    results.Add(word);
-                }
-            }
-        }
-
-        return results;
-    }
 
     /// <summary>
-    /// 处理大型文本
+    /// 处理大型文本（优化版）
     /// </summary>
     public async Task<string> ProcessLargeTextAsync(string text, PinyinFormat format, string separator)
     {
@@ -284,27 +196,42 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
             return await GetTextPinyinAsync(text, format, separator);
 
         var result = new StringBuilder(text.Length * 2);
+        var segments = SimpleTextSegmenter.Segment(text);
 
-        for (var i = 0; i < text.Length; i += blockSize)
+        var currentBlock = new StringBuilder(blockSize + 500); // 添加缓冲区，避免频繁扩容
+        var chineseCharCount = 0;
+
+        foreach (var segment in segments)
         {
-            // 计算基本块长度
-            var length = Math.Min(blockSize, text.Length - i);
+            var segmentChineseCount = ChineseCharacterUtils.CountChineseCharacters(segment);
 
-            // 检查块结束位置是否正好是代理对的高代理项
-            if (i + length < text.Length && char.IsHighSurrogate(text[i + length - 1]) &&
-                char.IsLowSurrogate(text[i + length]))
+            // 如果添加这个片段会超出块大小，先处理当前块
+            if (chineseCharCount > 0 && chineseCharCount + segmentChineseCount > blockSize)
             {
-                // 如果是，则包含下一个字符，保持代理对完整
-                length++;
+                var blockResult = await GetTextPinyinAsync(currentBlock.ToString(), format, separator);
+
+                if (result.Length > 0 && !result.ToString().EndsWith(separator))
+                    result.Append(separator);
+
+                result.Append(blockResult);
+
+                // 重置为下一个块
+                currentBlock.Clear();
+                chineseCharCount = 0;
             }
 
-            var block = text.Substring(i, length);
-            var blockResult = await GetTextPinyinAsync(block, format, separator);
+            currentBlock.Append(segment);
+            chineseCharCount += segmentChineseCount;
+        }
 
-            if (i > 0 && result.Length > 0 && !result.ToString().EndsWith(separator))
-            {
+        // 处理最后一个块，如果它包含任何文本
+        if (currentBlock.Length == 0) return result.ToString();
+        {
+            var blockResult = await GetTextPinyinAsync(currentBlock.ToString(), format, separator);
+
+            if (result.Length > 0 && !result.ToString().EndsWith(separator))
                 result.Append(separator);
-            }
+
             result.Append(blockResult);
         }
 
@@ -327,7 +254,7 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
 
         // 提取所有唯一汉字
         var uniqueChars = new HashSet<char>();
-        foreach (var c in text.Where(IsChinese))
+        foreach (var c in text.Where(ChineseCharacterUtils.IsChineseChar))
         {
             uniqueChars.Add(c);
         }
@@ -339,7 +266,8 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
         for (var i = 0; i < text.Length; i++)
         {
             var c = text[i];
-            if (IsChinese(c) && charPinyins.TryGetValue(c, out var pinyins) && pinyins.Length > 0)
+            if (ChineseCharacterUtils.IsChineseChar(c) && charPinyins.TryGetValue(c, out var pinyins) &&
+                pinyins.Length > 0)
             {
                 result[i] = pinyins[0]; // 使用第一个拼音
             }
@@ -353,70 +281,11 @@ internal partial class PinyinTextProcessor(OptimizedPinyinDatabase database)
         return result;
     }
 
-    /// <summary>
-    /// 分块处理大文本
-    /// </summary>
-    public async Task<string> ProcessLargeTextBatchAsync(string text, PinyinFormat format, string separator)
-    {
-        if (string.IsNullOrEmpty(text))
-            return string.Empty;
-
-        // 对于大文本，采用分块策略
-        const int blockSize = 2000; // 每次处理的字符数
-
-        if (text.Length <= blockSize)
-        {
-            // 小文本直接处理
-            return await GetTextPinyinAsync(text, format, separator);
-        }
-
-        // 为大文本分配缓冲区
-        var result = new StringBuilder(text.Length * 3); // 预估最终长度
-
-        // 分块处理
-        for (var i = 0; i < text.Length; i += blockSize)
-        {
-            // 计算当前块的长度
-            var length = Math.Min(blockSize, text.Length - i);
-
-            // 截取当前块
-            var block = text.Substring(i, length);
-
-            // 处理当前块
-            var blockResult = await GetTextPinyinAsync(block, format, separator);
-
-            // 添加到结果，确保分隔符处理正确
-            if (i > 0 && result.Length > 0 && !result.ToString().EndsWith(separator))
-            {
-                result.Append(separator);
-            }
-
-            result.Append(blockResult);
-        }
-
-        return result.ToString();
-    }
-    /// <summary>
-    /// 判断字符是否是中文
-    /// </summary>
-    private static bool IsChinese(char c)
-    {
-        // 对于单个字符，只能判断基本汉字和扩展A区
-        return (c >= 0x4E00 && c <= 0x9FFF) ||    // 基本汉字
-               (c >= 0x3400 && c <= 0x4DBF);      // 扩展A区
-    }
-
-    /// <summary>
-    /// 判断指定位置的字符是否是中文（支持扩展B区及更高区域）
-    /// </summary>
-    private static bool IsChineseAt(string text, int index)
-    {
-        return ChineseCharacterUtils.IsChineseCodePoint(text, index);
-    }
 
     /// <summary>
     /// 多音字项
     /// </summary>
+    [SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Local")]
     private class PolyphoneItem
     {
         public int Index { get; set; }

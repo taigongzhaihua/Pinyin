@@ -142,7 +142,7 @@ public static partial class PinyinUtils
 
         foreach (var c in text)
         {
-            if (UnifiedPinyinApi.IsChinese(c))
+            if (ChineseCharacterUtils.IsChineseChar(c))
             {
                 // 获取拼音并提取首字母
                 var pinyins = await UnifiedPinyinApi.GetCharPinyinAsync(c, PinyinFormat.WithoutTone);

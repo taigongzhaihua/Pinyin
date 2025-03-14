@@ -50,6 +50,7 @@ public static class UnifiedPinyinApi
 
     private static async Task InitializeInternalAsync()
     {
+        if (_isInitialized) return;
         try
         {
             await _service.InitializeAsync();
@@ -59,17 +60,6 @@ public static class UnifiedPinyinApi
         {
             _initializeTask = null;
             throw new InvalidOperationException("初始化拼音库失败", ex);
-        }
-    }
-
-    /// <summary>
-    /// 检查初始化状态
-    /// </summary>
-    private static void EnsureInitialized()
-    {
-        if (!_isInitialized)
-        {
-            throw new InvalidOperationException("拼音库未初始化，请先调用 InitializeAsync 方法");
         }
     }
 
@@ -115,20 +105,6 @@ public static class UnifiedPinyinApi
     {
         await InitializeOnDemandAsync();
         return await _service.GetFirstLettersAsync(text, separator);
-    }
-
-    /// <summary>
-    /// 高效处理大文本
-    /// </summary>
-    /// <param name="text">大文本内容</param>
-    /// <param name="format">拼音格式</param>
-    /// <param name="separator">分隔符</param>
-    /// <returns>处理结果</returns>
-    public static async Task<string> ProcessLargeTextAsync(string text,
-        PinyinFormat format = PinyinFormat.WithToneMark, string separator = " ")
-    {
-        await InitializeOnDemandAsync();
-        return await _service.ProcessLargeTextAsync(text, format, separator);
     }
 
     /// <summary>
@@ -215,37 +191,6 @@ public static class UnifiedPinyinApi
         return await _service.GetTextCharactersPinyinAsync(text, format);
     }
 
-    /// <summary>
-    /// 高效批量处理大文本
-    /// </summary>
-    /// <param name="text">大文本内容</param>
-    /// <param name="format">拼音格式</param>
-    /// <param name="separator">分隔符</param>
-    /// <returns>拼音结果</returns>
-    public static async Task<string> ProcessLargeTextBatchAsync(
-        string text, PinyinFormat format = PinyinFormat.WithToneMark, string separator = " ")
-    {
-        await InitializeOnDemandAsync();
-        return await _service.ProcessLargeTextBatchAsync(text, format, separator);
-    }
-
-    /// <summary>
-    /// 判断字符是否是中文
-    /// </summary>
-    public static bool IsChinese(char c)
-    {
-        // 对于单个字符，只能判断基本汉字和扩展A区
-        return (c >= 0x4E00 && c <= 0x9FFF) || // 基本汉字
-               (c >= 0x3400 && c <= 0x4DBF); // 扩展A区
-    }
-
-    /// <summary>
-    /// 判断指定位置的字符是否是中文（支持扩展B区及更高区域）
-    /// </summary>
-    public static bool IsChineseAt(string text, int index)
-    {
-        return ChineseCharacterUtils.IsChineseCodePoint(text, index);
-    }
 }
 
 /// <summary>

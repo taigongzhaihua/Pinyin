@@ -59,15 +59,11 @@ internal partial class PinyinService : IDisposable
     public async Task<string[]> GetCharPinyinAsync(string c, PinyinFormat format = PinyinFormat.WithToneMark)
     {
         EnsureInitialized();
-        if (c.Length > 1)
+        if (ChineseCharacterUtils.CountChineseCharacters(c) == 1)
         {
-            if (ChineseCharacterUtils.IsChineseCodePoint(c, 0) && c.Length == 2)
-            {
-                return await _database.GetCharPinyinAsync(c, format);
-            }
-            throw new InvalidOperationException("只能输入一个汉字");
+            return await _database.GetCharPinyinAsync(c, format);
         }
-        return await _database.GetCharPinyinAsync(c, format);
+        throw new InvalidOperationException("只能输入一个汉字");
     }
     /// <summary>
     /// 获取文本的拼音
@@ -78,7 +74,20 @@ internal partial class PinyinService : IDisposable
         string separator = " ")
     {
         EnsureInitialized();
-        return await _textProcessor.GetTextPinyinAsync(text, format, separator);
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        if (text.Length <= 1000) // 如果文本较短，直接使用文本处理器
+        {
+            return await _textProcessor.GetTextPinyinAsync(text, format, separator);
+        }
+
+        // 对于较长文本，使用优化的方法
+        return await _textProcessor.ProcessLargeTextAsync(text, format, separator);
+
+
     }
 
     /// <summary>
@@ -181,22 +190,16 @@ internal partial class PinyinService : IDisposable
 
         if (string.IsNullOrEmpty(text))
             return [];
-
-        // 调用文本处理器的批量方法
-        return await _textProcessor.GetTextCharactersPinyinAsync(text, format);
+        if (text.Length < 1000)
+        {
+            // 调用文本处理器的批量方法
+            return await _textProcessor.GetTextCharactersPinyinAsync(text, format);
+        }
+        // 对于较长文本，使用优化的数据库方法
+        return (await _textProcessor.ProcessLargeTextAsync(text, format, " ")).Split(" ");
     }
 
-    /// <summary>
-    /// 高效批量处理大文本
-    /// </summary>
-    public async Task<string> ProcessLargeTextBatchAsync(
-        string text, PinyinFormat format, string separator)
-    {
-        EnsureInitialized();
 
-        // 使用分块处理大文本
-        return await _textProcessor.ProcessLargeTextBatchAsync(text, format, separator);
-    }
     /// <summary>
     /// 释放资源
     /// </summary>

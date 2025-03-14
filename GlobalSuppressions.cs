@@ -9,3 +9,4 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("CodeQuality", "IDE0079:请删除不必要的忽略", Justification = "<挂起>", Scope = "type", Target = "~T:TGZH.Pinyin.ChineseCharacterUtils")]
 [assembly: SuppressMessage("CodeQuality", "IDE0079:请删除不必要的忽略", Justification = "<挂起>", Scope = "type", Target = "~T:TGZH.Pinyin.PinyinCacheManager")]
 [assembly: SuppressMessage("CodeQuality", "IDE0079:请删除不必要的忽略", Justification = "<挂起>", Scope = "member", Target = "~M:TGZH.Pinyin.PinyinUtils.PinyinValidRegex~System.Text.RegularExpressions.Regex")]
+[assembly: SuppressMessage("CodeQuality", "IDE0079:请删除不必要的忽略", Justification = "<挂起>", Scope = "type", Target = "~T:TGZH.Pinyin.PinyinTextProcessor.PolyphoneItem")]

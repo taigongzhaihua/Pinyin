@@ -71,7 +71,7 @@ await UnifiedPinyinApi.InitializeAsync(options);
 ```csharp
 // 获取单个汉字的拼音（支持多音字，返回所有可能的拼音）
 string[] pinyins = await UnifiedPinyinApi.GetCharPinyinAsync('中');
-Console.WriteLine(string.Join(", ", pinyins));  // 输出: zhōng
+Debug.WriteLine(string.Join(", ", pinyins));  // 输出: zhōng
 
 // 获取扩展区汉字的拼音（使用字符串重载）
 string[] extPinyins = await UnifiedPinyinApi.GetCharPinyinAsync("𠀀");
@@ -87,19 +87,19 @@ string[] firstLetter = await UnifiedPinyinApi.GetCharPinyinAsync('中', PinyinFo
 ```csharp
 // 获取文本的拼音
 string pinyin = await UnifiedPinyinApi.GetTextPinyinAsync("中国");
-Console.WriteLine(pinyin);  // 输出: zhōng guó
+Debug.WriteLine(pinyin);  // 输出: zhōng guó
 
 // 自定义分隔符
 string pinyinNoSpace = await UnifiedPinyinApi.GetTextPinyinAsync("中国", PinyinFormat.WithToneMark, "");
-Console.WriteLine(pinyinNoSpace);  // 输出: zhōngguó
+Debug.WriteLine(pinyinNoSpace);  // 输出: zhōngguó
 
 // 不带声调
 string pinyinNoTone = await UnifiedPinyinApi.GetTextPinyinAsync("中国", PinyinFormat.WithoutTone);
-Console.WriteLine(pinyinNoTone);  // 输出: zhong guo
+Debug.WriteLine(pinyinNoTone);  // 输出: zhong guo
 
 // 首字母
 string firstLetters = await UnifiedPinyinApi.GetFirstLettersAsync("中国");
-Console.WriteLine(firstLetters);  // 输出: zg
+Debug.WriteLine(firstLetters);  // 输出: zg
 ```
 
 ## 详细API参考
@@ -223,11 +223,11 @@ string pinyin = await UnifiedPinyinApi.ProcessLargeTextAsync(largeText);
 ```csharp
 // 比较拼音相似度
 double similarity = PinyinUtils.CompareSimilarity("zhong guo", "zhōng guó");
-Console.WriteLine(similarity);  // 输出接近 1.0 的值
+Debug.WriteLine(similarity);  // 输出接近 1.0 的值
 
 // 拼音模式匹配
 bool matches = await PinyinUtils.MatchesPinyinPattern("中国人", "zgr");
-Console.WriteLine(matches);  // 输出: True
+Debug.WriteLine(matches);  // 输出: True
 ```
 
 ## 示例代码
@@ -251,31 +251,31 @@ class Program
         
         // 获取带声调的拼音
         string withTone = await UnifiedPinyinApi.GetTextPinyinAsync(text);
-        Console.WriteLine($"带声调: {withTone}");
+        Debug.WriteLine($"带声调: {withTone}");
         
         // 获取不带声调的拼音
         string withoutTone = await UnifiedPinyinApi.GetTextPinyinAsync(text, PinyinFormat.WithoutTone);
-        Console.WriteLine($"不带声调: {withoutTone}");
+        Debug.WriteLine($"不带声调: {withoutTone}");
         
         // 获取数字声调的拼音
         string withNumber = await UnifiedPinyinApi.GetTextPinyinAsync(text, PinyinFormat.WithToneNumber);
-        Console.WriteLine($"数字声调: {withNumber}");
+        Debug.WriteLine($"数字声调: {withNumber}");
         
         // 获取首字母
         string firstLetter = await UnifiedPinyinApi.GetFirstLettersAsync(text);
-        Console.WriteLine($"首字母: {firstLetter}");
+        Debug.WriteLine($"首字母: {firstLetter}");
         
         // 处理多音字
         string multiTone = await UnifiedPinyinApi.GetTextPinyinAsync("银行和行走");
-        Console.WriteLine($"多音字处理: {multiTone}");
+        Debug.WriteLine($"多音字处理: {multiTone}");
         
         // 拼音匹配
         bool match = await PinyinUtils.MatchesPinyinPattern("中国银行", "zgyx");
-        Console.WriteLine($"拼音匹配 'zgyx': {match}");
+        Debug.WriteLine($"拼音匹配 'zgyx': {match}");
         
         // 使用字符串重载方法处理扩展区字符
         string[] extPinyin = await UnifiedPinyinApi.GetCharPinyinAsync("𠀀");
-        Console.WriteLine($"扩展区字符拼音: {string.Join(", ", extPinyin)}");
+        Debug.WriteLine($"扩展区字符拼音: {string.Join(", ", extPinyin)}");
     }
 }
 ```
@@ -325,8 +325,8 @@ class Program
         // 使用功能
         var text = "长城长度很长";
         var pinyin = await UnifiedPinyinApi.GetTextPinyinAsync(text);
-        Console.WriteLine($"原文: {text}");
-        Console.WriteLine($"拼音: {pinyin}");
+        Debug.WriteLine($"原文: {text}");
+        Debug.WriteLine($"拼音: {pinyin}");
     }
 }
 ```
